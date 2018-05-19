@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pprint
+import sys
 import os
 
 from minimic import ClientSession, save_profile, save_album
@@ -23,28 +24,36 @@ def sc_profile(args):
         logging.warning(f"Making archive at {archive_dir}")
         os.makedirs(archive_dir, exist_ok=True)
 
-    if args.profile_url.isdigit():
-        profile_id = args.profile_url
-        profile_url = f'{os.environ["MINIMIC_URL"]}/profiles/{profile_id}'
-    else:
-        profile_id = os.path.basename(args.profile_url).split('-')[0]
-        profile_url = args.profile_url
-
-    profile_dir = os.path.join(archive_dir, f'profile-{profile_id}')
-    if os.path.exists(profile_dir):
-        logging.warning(f'Profile directory at {profile_dir} already exists')
-        return
-    else:
-        os.makedirs(profile_dir)
+    profiles = [n for n in [args.profile_url] if n]
+    if len(profiles) == 0:
+        for line in sys.stdin:
+            profiles.append(line.strip())
+    
+    profile_urls = []
+    for profile_url in [p for p in profiles if p]:
+        if profile_url.isdigit():
+            profile_id = profile_url
+            profile_url = f'{os.environ["MINIMIC_URL"]}/profiles/{profile_id}'
+        else:
+            profile_id = os.path.basename(profile_url).split('-')[0]
+            profile_url = profile_url
+        
+        profile_dir = os.path.join(archive_dir, f'profile-{profile_id}')
+        if os.path.exists(profile_dir):
+            logging.warning(f'Profile directory at {profile_dir} already exists')
+        else:
+            os.makedirs(profile_dir)
+            profile_urls.append((profile_id, profile_url, profile_dir))
 
     client = ClientSession(os.environ['MINIMIC_SIGNIN'],
                            os.environ['MINIMIC_USERNAME'],
                            os.environ['MINIMIC_PASSWORD'])
     try:
         client.login()
-        r = save_profile(client, profile_url=profile_url,
-                         profile_id=profile_id, target_dir=profile_dir)
-        pprint.pprint(r)
+        for pid, purl, pdir in profile_urls:
+            r = save_profile(client, profile_url=purl,
+                             profile_id=pid, target_dir=pdir)
+            pprint.pprint(r)
     finally:
         client.session.close()
 
@@ -87,8 +96,8 @@ if __name__ == '__main__':
 
     sp_save_profile = subparsers.add_parser('profile',
         help='Save profile information')
-    sp_save_profile.add_argument('profile_url', type=str,
-        help='Profile URL or ID')
+    sp_save_profile.add_argument('profile_url', type=str, nargs='?',
+        help='Profile URL or ID', default=None)
     
     args = parser.parse_args()
 
