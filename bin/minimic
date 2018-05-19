@@ -42,7 +42,6 @@ def sc_profile(args):
         if os.path.exists(profile_dir):
             logging.warning(f'Profile directory at {profile_dir} already exists')
         else:
-            os.makedirs(profile_dir)
             profile_urls.append((profile_id, profile_url, profile_dir))
 
     client = ClientSession(os.environ['MINIMIC_SIGNIN'],
@@ -51,9 +50,13 @@ def sc_profile(args):
     try:
         client.login()
         for pid, purl, pdir in profile_urls:
-            r = save_profile(client, profile_url=purl,
+            try:
+                os.makedirs(pdir)
+                r = save_profile(client, profile_url=purl,
                              profile_id=pid, target_dir=pdir)
-            pprint.pprint(r)
+                pprint.pprint(r)
+            except Exception as e:
+                logging.error(e)
     finally:
         client.session.close()
 
@@ -64,20 +67,32 @@ def sc_gallery(args):
         logging.warning(f"Making archive at {archive_dir}")
         os.makedirs(archive_dir, exist_ok=True)
 
-    if args.gallery_url.isdigit():
-        gallery_id = args.gallery_url
-        gallery_url = f'{os.environ["MINIMIC_URL"]}/galleries/{gallery_id}'
-    else:
-        gallery_id = os.path.basename(args.gallery_url).split('-')[0]
-        gallery_url = args.gallery_url
+    galleries = [n for n in [args.gallery_url] if n]
+    if len(galleries) == 0:
+        for line in sys.stdin:
+            galleries.append(line.strip())
+
+    gallery_urls = []
+    for gallery_url in [g for g in galleries if g]:
+        if gallery_url.isdigit():
+            gallery_id = gallery_url
+            gallery_url = f'{os.environ["MINIMIC_URL"]}/galleries/{gallery_id}'
+        else:
+            gallery_id = os.path.basename(gallery_url).split('-')[0]
+            gallery_url = gallery_url
+        gallery_urls.append((gallery_id, gallery_url))
 
     client = ClientSession(os.environ['MINIMIC_SIGNIN'],
                            os.environ['MINIMIC_USERNAME'],
                            os.environ['MINIMIC_PASSWORD'])
     try:
         client.login()
-        r = save_album(client, gallery_url, os.environ['MINIMIC_ARCHIVE'])
-        pprint.pprint(r)
+        for gid, gurl in gallery_urls:
+            try:
+                r = save_album(client, gurl, os.environ['MINIMIC_ARCHIVE'])
+                pprint.pprint(r)
+            except Exception as e:
+                logging.error(e)
     finally:
         client.session.close()
 
@@ -91,8 +106,8 @@ if __name__ == '__main__':
     
     sp_save_gallery = subparsers.add_parser('gallery',
         help='Download a gallery with images')
-    sp_save_gallery.add_argument('gallery_url', type=str,
-        help='Album URL or ID')
+    sp_save_gallery.add_argument('gallery_url', type=str, nargs='?',
+        help='Album URL or ID', default=None)
 
     sp_save_profile = subparsers.add_parser('profile',
         help='Save profile information')
