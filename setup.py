@@ -10,6 +10,7 @@ setup(name='minimic',
       packages=['minimic'],
       zip_safe=False,
       install_requires=[
+        'mypy',
         'HTMLParser',
         'requests',
         'pyquery',

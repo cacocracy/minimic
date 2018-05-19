@@ -22,7 +22,7 @@ def download_image(client: ClientSession, image_url: str, target_dir: str,
     """Download an image and save to the target directory """
 
     if not os.path.isdir(target_dir):
-        raise MinimicError(f"target_dir {target_dir} does not exist")
+        raise MinimicException(f"target_dir {target_dir} does not exist")
     
     image_dir = os.path.dirname(image_url)
     image_file = os.path.basename(image_url)
@@ -83,8 +83,8 @@ def fetch_album_data(client: ClientSession, album_url: str) -> Dict[str, Any]:
             profile_id = None
             try:
                 # E.g.,  "/profiles/88468-user-name/messages/new"
-                profile_id = line.split('href="')[1].split('" class=')[0]
-                profile_id = int(profile_id.split('/')[2].split('-')[0])
+                pidstr = line.split('href="')[1].split('" class=')[0]
+                profile_id = int(pidstr.split('/')[2].split('-')[0])
             except Exception as e:
                 logging.warning("Cannot get profile_id in {album_url}")
 
@@ -119,7 +119,7 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
     """Parse and then save the profile at the given url to disk """
 
     if not os.path.isdir(target_dir):
-        raise MinimicError(f"target_dir {target_dir} does not exist")
+        raise MinimicException(f"target_dir {target_dir} does not exist")
 
     profile_page = client.session.get(profile_url, stream=True)
     profile_page.raise_for_status()
