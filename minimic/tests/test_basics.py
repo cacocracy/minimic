@@ -33,21 +33,21 @@ def pause(f):
 
 
 class TestClient(TestCase):
-#    def test_create_client(self):
-#        c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
-#
-#    @pause
-#    def test_login_credentials(self):
-#        c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
-#        c.login()
-#        c.logout()
-#
-#    @pause
-#    def test_login_wrong_credentials(self):
-#        c = minimic.ClientSession(SIGNIN, 'nonexist@email', 'wrongpass22')
-#        with self.assertRaises(minimic.LoginError):
-#            c.login()
-#        c.logout()
+    def test_create_client(self):
+        c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
+
+    @pause
+    def test_login_credentials(self):
+        c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
+        c.login()
+        c.logout()
+
+    @pause
+    def test_login_wrong_credentials(self):
+        c = minimic.ClientSession(SIGNIN, 'nonexist@email', 'wrongpass22')
+        with self.assertRaises(minimic.LoginError):
+            c.login()
+        c.logout()
 
     @pause
     def test_save_album(self):
