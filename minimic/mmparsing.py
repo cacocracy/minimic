@@ -121,7 +121,7 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
     if not os.path.isdir(target_dir):
         raise MinimicError(f"target_dir {target_dir} does not exist")
 
-    profile_page = client.get(profile_url, stream=True)
+    profile_page = client.session.get(profile_url, stream=True)
     profile_page.raise_for_status()
     profile_info = {}
 

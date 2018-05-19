@@ -54,6 +54,7 @@ class TestClient(TestCase):
         c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
         c.login()
         target_dir = '/tmp/minimic-unittest'
+        shutil.rmtree(target_dir, ignore_errors=True)
         os.makedirs(target_dir, exist_ok=True)
         try:
             r = minimic.save_album(c, f"{URL}/galleries/95318",
@@ -75,3 +76,25 @@ class TestClient(TestCase):
             shutil.rmtree(target_dir)
             c.logout()
 
+    @pause
+    def test_save_profile(self):
+        c = minimic.ClientSession(SIGNIN, USERNAME, PASSWORD)
+        c.login()
+        target_dir = '/tmp/minimic-unittest'
+        os.makedirs(target_dir, exist_ok=True)
+        try:
+            pid = 341084
+            r = minimic.save_profile(c, f"{URL}/profiles/{pid}", pid, target_dir)
+
+            # Test response metadata
+            self.assertIn("ely m", r.get('name').lower())
+            self.assertIn("!!!!", r.get('intro').lower())
+            self.assertEqual(r.get('country'), "Italy")
+
+            # Test proper download
+            self.assertTrue(os.path.isdir(target_dir))
+            self.assertTrue(os.path.exists(os.path.join(target_dir, r.get('local_thumbnail'))))
+            self.assertTrue(os.path.exists(os.path.join(target_dir, 'info.json')))
+        finally:
+            shutil.rmtree(target_dir)
+            c.logout()
