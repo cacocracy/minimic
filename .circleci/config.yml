@@ -14,7 +14,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            pip install -e ~/repo
+            sudo pip install -e ~/repo
       - run:
           name: run tests
           command: |
