@@ -1,10 +1,11 @@
 import logging
+import time
 
 from pyquery import PyQuery as pq
 import requests
 
-from misc import DEFAULT_USER_AGENT
-from exceptions import MinimicException, LoginError
+from minimic.misc import DEFAULT_USER_AGENT
+from minimic.exceptions import MinimicException, LoginError
 
 
 class ClientSession(object):
@@ -42,14 +43,14 @@ class ClientSession(object):
             raise LoginError(f'Did not receive 200 HTTP code: '
                               'Got {response.status_code}')
         else:
-            if 'Sign out' not in response.text:
+            if 'Featured Galleries' not in response.text:
                 raise LoginError('Did not appear to login -- '
-                                 '"Sign out" token not found')
+                                 '"Featured Galleries" token not found')
             time.sleep(2)
             logging.info(f"Logged in successfully as {self.username}")
 
     def logout(self) -> None:
-        logging.warning('Method logout has no effect')
+        self.session.close()
 
     def vprint(self, *args, **kwargs) -> None:
         if self.pinfo is True:

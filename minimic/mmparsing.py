@@ -7,13 +7,13 @@ import time
 import os
 import re
 
-from html.parser import HTMLParser
+from html import unescape
 from pyquery import PyQuery as pq
 import werkzeug
+import urllib
 
-from misc import download_image
-from client import ClientSession
-from exceptions import ParseError, MinimicError, SkippedAlbum
+from minimic.client import ClientSession
+from minimic.exceptions import ParseError, MinimicException, SkippedAlbum
 
 
 def download_image(client: ClientSession, image_url: str, target_dir: str,
@@ -24,25 +24,24 @@ def download_image(client: ClientSession, image_url: str, target_dir: str,
     if not os.path.isdir(target_dir):
         raise MinimicError(f"target_dir {target_dir} does not exist")
     
-    p = HTMLParser()
     image_dir = os.path.dirname(image_url)
     image_file = os.path.basename(image_url)
-    enc_url = os.path.join(image_dir, urllib.parse.quote_plus(p.unescape(image_file)))
+    enc_url = os.path.join(image_dir, urllib.parse.quote_plus(unescape(image_file)))
     logging.debug("Downloading image %s (%s)..." % (image_url, enc_url))
 
     secure_fname = werkzeug.utils.secure_filename(image_file)
-    image_path = os.path.join(album_path, secure_fname)
-    if secure_fname in os.listdir(album_path):
+    image_path = os.path.join(target_dir, secure_fname)
+    if secure_fname in os.listdir(target_dir):
         if not force:
             logging.warning(f"{image_file} already downloaded "
-                            f"in {album_path}; skipping.")
+                            f"in {target_dir}; skipping.")
             return image_path
         else:
             logging.warning(f"{image_file} already downloaded "
-                            f"in {album_path}; forcing refresh.")
+                            f"in {target_dir}; forcing refresh.")
 
-    client.headers.update({'referer': referer_url})
-    r = client.get(enc_url, stream=True, allow_redirects=True)
+    client.session.headers.update({'referer': referer_url})
+    r = client.session.get(enc_url, stream=True, allow_redirects=True)
     with open(image_path, 'wb') as f:
         for chunk in r.iter_content(1024):
             f.write(chunk)
@@ -50,10 +49,10 @@ def download_image(client: ClientSession, image_url: str, target_dir: str,
     return image_path
 
 
-def fetch_album_data(client: SessionClient, album_url: str) -> Dict[str, Any]:
+def fetch_album_data(client: ClientSession, album_url: str) -> Dict[str, Any]:
     """Fetch album info and return as dict; save nothing to disk """
 
-    album_page = client.get(album_url, stream=True)
+    album_page = client.session.get(album_url, stream=True)
     album_page.raise_for_status()
 
     description = "Not found"
@@ -139,11 +138,13 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
         flag = S('.flag img')
         profile_info['country_flag'] = flag.attr['src']
         profile_info['country'] = flag.attr['title']
-        p = download_image(profile_info['country_flag'],
-                                 target_dir, profile_url)
+        p = download_image(client,
+                           profile_info['country_flag'],
+                           target_dir,
+                           profile_url)
         profile_info['country_flag_local'] = os.path.basename(p)
     except Exception as e:
-        logging.warning(f"{e}: Cannot find flag/country on {profile_url}"))
+        logging.warning(f"{e}: Cannot find flag/country on {profile_url}")
 
     try:
         a = [l for l in profile_page.text.split('\n')
@@ -155,8 +156,9 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
             profile_info['pic_url'] = m.groups()[0]
         else:
             raise ParseError('Cannot figure out avatar img')
-        p = download_image(profile_info['pic_url'],
-                           target_dir, profile_url)
+        p = download_image(client, profile_info['pic_url'],
+                           target_dir,
+                           profile_url)
         profile_info['local_thumbnail'] = os.path.basename(p)
     except Exception as e:
         logging.warning(f"{e}: Cannot find profile pic on {profile_url}")
@@ -170,11 +172,11 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
     return profile_info
 
 
-def save_album(client: SessionClient, album_url: str, target_dir: str,
+def save_album(client: ClientSession, album_url: str, target_dir: str,
                force: bool = False) -> Dict[str, Any]:
     """Save album info to disk and all contained images """
 
-    album_data = fetch_album_data(album_url)
+    album_data = fetch_album_data(client, album_url)
     album_id = [n for n in album_url.split('/') if n][-1]
     dirname = "p{}-a{}".format(album_data.get('profile_id'), album_id)
     album_path = os.path.join(target_dir, dirname)
@@ -216,10 +218,11 @@ def save_album(client: SessionClient, album_url: str, target_dir: str,
                     image_path[-12:]), 
                     end='',
                     flush=True)
-            got = download_image(image_path, album_path, album_url)
+            got = download_image(client, image_path, album_path, album_url)
             if got:
                 time.sleep(1 + random.random()*2)
         except Exception as e:
             logging.error('Error downloading {}: {}'.format(image_path, e))
             time.sleep(0.5)
 
+    return metadata

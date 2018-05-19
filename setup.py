@@ -9,5 +9,11 @@ setup(name='minimic',
       license='Unlicense',
       packages=['minimic'],
       zip_safe=False,
+      install_requires=[
+        'HTMLParser',
+        'requests',
+        'pyquery',
+        'Werkzeug'
+      ],
       scripts=['bin/minimic'])
 
