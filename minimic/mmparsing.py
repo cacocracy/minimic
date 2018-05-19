@@ -68,7 +68,7 @@ def fetch_album_data(client: ClientSession, album_url: str) -> Dict[str, Any]:
     except Exception as e:
         logging.warning("Cannot find likes_count in {album_url}")
    
-    locked_image_count = None
+    locked_images_count = None
     try:
         r = re.search('([\d]+) locked images', S('.title-bar').text())
         if r:

@@ -1,4 +1,101 @@
 #!/usr/bin/env python3
+import argparse
+import logging
+import pprint
+import os
+
+from minimic import ClientSession, save_profile, save_album
+
+
+REQUIRED_VARS = ['MINIMIC_PASSWORD', 'MINIMIC_USERNAME', 'MINIMIC_URL',
+                 'MINIMIC_ARCHIVE', 'MINIMIC_SIGNIN']
+for v in REQUIRED_VARS:
+    missing_vars = []
+    if os.environ.get(v) is None:
+        missing_vars.append(v)
+    if missing_vars:
+        raise ValueError(f'Missing shell vars {", ".join(missing_vars)}')
+
+
+def sc_profile(args):
+    archive_dir = os.path.expanduser(os.environ['MINIMIC_ARCHIVE'])
+    if not os.path.isdir(archive_dir):
+        logging.warning(f"Making archive at {archive_dir}")
+        os.makedirs(archive_dir, exist_ok=True)
+
+    if args.profile_url.isdigit():
+        profile_id = args.profile_url
+        profile_url = f'{os.environ["MINIMIC_URL"]}/profiles/{profile_id}'
+    else:
+        profile_id = os.path.basename(args.profile_url).split('-')[0]
+        profile_url = args.profile_url
+
+    profile_dir = os.path.join(archive_dir, f'profile-{profile_id}')
+    if os.path.exists(profile_dir):
+        logging.warning(f'Profile directory at {profile_dir} already exists')
+        return
+    else:
+        os.makedirs(profile_dir)
+
+    client = ClientSession(os.environ['MINIMIC_SIGNIN'],
+                           os.environ['MINIMIC_USERNAME'],
+                           os.environ['MINIMIC_PASSWORD'])
+    try:
+        client.login()
+        r = save_profile(client, profile_url=profile_url,
+                         profile_id=profile_id, target_dir=profile_dir)
+        pprint.pprint(r)
+    finally:
+        client.session.close()
+
+
+def sc_gallery(args):
+    archive_dir = os.path.expanduser(os.environ['MINIMIC_ARCHIVE'])
+    if not os.path.isdir(archive_dir):
+        logging.warning(f"Making archive at {archive_dir}")
+        os.makedirs(archive_dir, exist_ok=True)
+
+    if args.gallery_url.isdigit():
+        gallery_id = args.gallery_url
+        gallery_url = f'{os.environ["MINIMIC_URL"]}/galleries/{gallery_id}'
+    else:
+        gallery_id = os.path.basename(args.gallery_url).split('-')[0]
+        gallery_url = args.gallery_url
+
+    client = ClientSession(os.environ['MINIMIC_SIGNIN'],
+                           os.environ['MINIMIC_USERNAME'],
+                           os.environ['MINIMIC_PASSWORD'])
+    try:
+        client.login()
+        r = save_album(client, gallery_url, os.environ['MINIMIC_ARCHIVE'])
+        pprint.pprint(r)
+    finally:
+        client.session.close()
 
 if __name__ == '__main__':
-    print('Unimplemented')
+    logging.basicConfig(format='%(levelname)s %(module)s.%(funcName)s() '
+                               'line %(lineno)d -- %(message)s',
+                        level=logging.WARNING)
+
+    parser = argparse.ArgumentParser(description="Minimic interface")
+    subparsers = parser.add_subparsers(title='Subcommands', dest='subparser_name')
+    
+    sp_save_gallery = subparsers.add_parser('gallery',
+        help='Download a gallery with images')
+    sp_save_gallery.add_argument('gallery_url', type=str,
+        help='Album URL or ID')
+
+    sp_save_profile = subparsers.add_parser('profile',
+        help='Save profile information')
+    sp_save_profile.add_argument('profile_url', type=str,
+        help='Profile URL or ID')
+    
+    args = parser.parse_args()
+
+    if args.subparser_name == 'gallery':
+        sc_gallery(args)
+    elif args.subparser_name == 'profile':
+        sc_profile(args)
+    else:
+        raise ValueError('Invalid subcommand')
+
