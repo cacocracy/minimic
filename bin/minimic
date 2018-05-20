@@ -2,6 +2,7 @@
 import argparse
 import logging
 import pprint
+import json
 import sys
 import os
 import re
@@ -105,13 +106,59 @@ def sc_index(args):
         gen_gallery_html(g)
 
 
+def sc_status(args):
+    target_dir = None
+    if args.gallery_id:
+        if args.gallery_id.isdigit():
+            for d in os.listdir(os.environ['MINIMIC_ARCHIVE']):
+                if f'-a{args.gallery_id}' in d:
+                    target_dir = d
+        else:
+            for d in os.listdir(os.environ['MINIMIC_ARCHIVE']):
+                if args.gallery_id == d:
+                    target_dir = d
+        if target_dir is None:
+            print(f'ERROR - {args.gallery_id} - Not a valid key')
+            sys.exit(1)
+
+    if target_dir:
+        search_list = [target_dir]
+    else:
+        search_list = os.listdir(os.environ['MINIMIC_ARCHIVE'])
+    
+    for gk in search_list:
+        if re.match('p[\d]+-a[\d]+', gk) is None:
+            continue
+
+        fullp = os.path.join(os.environ['MINIMIC_ARCHIVE'], gk)
+        if not os.path.isdir(fullp):
+            print(f'ERROR - {gk} - {fullp} is not directory')
+            continue
+
+        # Check existence of 00-Info.json
+        if not os.path.isfile(os.path.join(fullp, '00-Info.json')):
+            print(f'ERROR - {gk} - Cannot find 00-Info.json')
+            continue
+
+        # Check expected images count
+        jd = json.load(open(os.path.join(fullp, '00-Info.json')))
+        eimgcnt = jd.get('images')
+        aimgcnt = [i for i in os.listdir(fullp) if any([ext in i.lower()
+                   for ext in ['.png', '.jpg', '.jpeg', '.gif']])]
+        if eimgcnt != len(aimgcnt):
+            print(f'ERROR - {gk} - Found {len(aimgcnt)} images, '
+                  f'expected {eimgcnt}')
+            continue
+
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s %(module)s.%(funcName)s() '
                                'line %(lineno)d -- %(message)s',
                         level=logging.WARNING)
 
     parser = argparse.ArgumentParser(description="Minimic interface")
-    subparsers = parser.add_subparsers(title='Subcommands', dest='subparser_name')
+    subparsers = parser.add_subparsers(title='Subcommands',
+                                       dest='subparser_name')
     
     sp_save_gallery = subparsers.add_parser('gallery',
         help='Download a gallery with images')
@@ -125,14 +172,21 @@ if __name__ == '__main__':
    
     sp_index_archive = subparsers.add_parser('index',
         help='Create index friendly to web browsers')
-    args = parser.parse_args()
 
+    sp_status = subparsers.add_parser('status',
+        help='Alert to any incomplete or corrupted galleries')
+    sp_status.add_argument('gallery_id', type=str, nargs='?',
+        help='Gallery directory name or ID', default=None)
+    
+    args = parser.parse_args()
     if args.subparser_name == 'gallery':
         sc_gallery(args)
     elif args.subparser_name == 'profile':
         sc_profile(args)
     elif args.subparser_name == 'index':
         sc_index(args)
+    elif args.subparser_name == 'status':
+        sc_status(args)
     else:
         raise ValueError('Invalid subcommand')
 
