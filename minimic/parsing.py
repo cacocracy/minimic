@@ -35,7 +35,7 @@ def download_image(client: ClientSession, image_url: str, target_dir: str,
         if not force:
             logging.warning(f"{image_file} already downloaded "
                             f"in {target_dir}; skipping.")
-            return image_path
+            return None
         else:
             logging.warning(f"{image_file} already downloaded "
                             f"in {target_dir}; forcing refresh.")
@@ -183,9 +183,9 @@ def save_album(client: ClientSession, album_url: str, target_dir: str,
 
     if os.path.exists(album_path):
         if force:
-            logging.warning("{album_path} already exists; forcing refresh")
+            logging.warning(f"{album_path} already exists; forcing refresh")
         else:
-            raise SkippedAlbum("{album_path}")
+            raise SkippedAlbum(f"Skipping {album_path}")
 
     os.makedirs(album_path, exist_ok=True)
     metadata = {

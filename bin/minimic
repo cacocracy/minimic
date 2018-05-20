@@ -91,7 +91,8 @@ def sc_gallery(args):
         client.login()
         for gid, gurl in gallery_urls:
             try:
-                r = save_album(client, gurl, os.environ['MINIMIC_ARCHIVE'])
+                r = save_album(client, gurl, os.environ['MINIMIC_ARCHIVE'],
+                               force=args.force)
                 pprint.pprint(r)
             except Exception as e:
                 logging.error(e)
@@ -151,12 +152,34 @@ def sc_status(args):
             continue
 
 
+def sc_inventory(args):
+    gmap = {}
+    contents = os.listdir(os.environ['MINIMIC_ARCHIVE'])
+    for gallery in [c for c in contents if re.match('p[\d]+-a[\d]+', c)]:
+        pid, gid = gallery.split('-')
+        pid, gid = pid[1:], gid[1:]
+        if pid in gmap.keys():
+            gmap[pid].append(gid)
+        else:
+            gmap[pid] = [gid]
+
+    for k in sorted(gmap.keys(), key=lambda x: len(gmap[x]), reverse=True):
+        pdir = os.path.join(os.environ['MINIMIC_ARCHIVE'], f'profile-{k}')
+        name, country = '---', ''
+        if os.path.isdir(pdir):
+            pdata = json.load(open(os.path.join(pdir, 'info.json')))
+            name, country = pdata.get('name'), pdata.get('country')
+
+        print(f' {k} "{name}" {country} --> {len(gmap[k])} albums')
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s %(module)s.%(funcName)s() '
                                'line %(lineno)d -- %(message)s',
                         level=logging.WARNING)
 
     parser = argparse.ArgumentParser(description="Minimic interface")
+    parser.add_argument('--force', action='store_true', default=False,
+        help='Force refresh of profile or gallery')
     subparsers = parser.add_subparsers(title='Subcommands',
                                        dest='subparser_name')
     
@@ -177,7 +200,10 @@ if __name__ == '__main__':
         help='Alert to any incomplete or corrupted galleries')
     sp_status.add_argument('gallery_id', type=str, nargs='?',
         help='Gallery directory name or ID', default=None)
-    
+
+    sp_inventory = subparsers.add_parser('inventory',
+        help='Give summary of archive')
+
     args = parser.parse_args()
     if args.subparser_name == 'gallery':
         sc_gallery(args)
@@ -187,6 +213,8 @@ if __name__ == '__main__':
         sc_index(args)
     elif args.subparser_name == 'status':
         sc_status(args)
+    elif args.subparser_name == 'inventory':
+        sc_inventory(args)
     else:
         raise ValueError('Invalid subcommand')
 
