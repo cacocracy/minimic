@@ -4,8 +4,9 @@ import logging
 import pprint
 import sys
 import os
+import re
 
-from minimic import ClientSession, save_profile, save_album
+from minimic import ClientSession, save_profile, save_album, gen_gallery_html
 
 
 REQUIRED_VARS = ['MINIMIC_PASSWORD', 'MINIMIC_USERNAME', 'MINIMIC_URL',
@@ -96,6 +97,14 @@ def sc_gallery(args):
     finally:
         client.session.close()
 
+
+def sc_index(args):
+    items = os.listdir(os.environ['MINIMIC_ARCHIVE'])
+    gallery_dirs = [g for g in items if re.match('p[\d]+-a[\d]+', g)]
+    for g in gallery_dirs:
+        gen_gallery_html(g)
+
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s %(module)s.%(funcName)s() '
                                'line %(lineno)d -- %(message)s',
@@ -113,13 +122,17 @@ if __name__ == '__main__':
         help='Save profile information')
     sp_save_profile.add_argument('profile_url', type=str, nargs='?',
         help='Profile URL or ID', default=None)
-    
+   
+    sp_index_archive = subparsers.add_parser('index',
+        help='Create index friendly to web browsers')
     args = parser.parse_args()
 
     if args.subparser_name == 'gallery':
         sc_gallery(args)
     elif args.subparser_name == 'profile':
         sc_profile(args)
+    elif args.subparser_name == 'index':
+        sc_index(args)
     else:
         raise ValueError('Invalid subcommand')
 
