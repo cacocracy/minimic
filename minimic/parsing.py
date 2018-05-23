@@ -123,6 +123,10 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
 
     profile_page = client.session.get(profile_url, stream=True)
     profile_page.raise_for_status()
+    
+    galleries_page = client.session.get(f'{profile_url}/galleries',
+                                        stream=True)
+    galleries_page.raise_for_status()
     profile_info = {}
 
     S = pq(profile_page.text)
@@ -145,6 +149,18 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
         profile_info['country_flag_local'] = os.path.basename(p)
     except Exception as e:
         logging.warning(f"{e}: Cannot find flag/country on {profile_url}")
+
+    profile_info['galleries'] = []
+    try:
+        G = pq(galleries_page.text)
+        user_galleries = G('.user_gallery a')
+        gallery_ids = [n for n in user_galleries
+                       if 'galleries/' in n.attrib['href']]
+        for g in gallery_ids:
+            g_id = int(g.attrib['href'].split('/')[-1])
+            profile_info['galleries'].append(g_id)
+    except Exception as e:
+        logging.warning(f'{e}: Cannot find galleires on {profile_url}')
 
     try:
         a = [l for l in profile_page.text.split('\n')

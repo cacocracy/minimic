@@ -90,6 +90,10 @@ class TestClient(TestCase):
             self.assertIn("ely m", r.get('name').lower())
             self.assertIn("!!!!", r.get('intro').lower())
             self.assertEqual(r.get('country'), "Italy")
+            self.assertGreaterEqual(len(r.get('galleries')), 27)
+            self.assertTrue(all([type(g) == int for g in r.get('galleries')]))
+            self.assertIn(149283, r.get('galleries'))
+            self.assertIn(85098, r.get('galleries'))
 
             # Test proper download
             self.assertTrue(os.path.isdir(target_dir))
