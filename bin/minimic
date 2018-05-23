@@ -41,10 +41,12 @@ def sc_profile(args):
             profile_url = profile_url
         
         profile_dir = os.path.join(archive_dir, f'profile-{profile_id}')
-        if os.path.exists(profile_dir):
-            logging.warning(f'Profile directory at {profile_dir} already exists')
-        else:
+        
+        if not os.path.exists(profile_dir) or args.force:
+            logging.warning(f'Force refresh of {profile_dir}')
             profile_urls.append((profile_id, profile_url, profile_dir))
+        else:
+            logging.warning(f'Profile at {profile_dir} already exists')
 
     client = ClientSession(os.environ['MINIMIC_SIGNIN'],
                            os.environ['MINIMIC_USERNAME'],
@@ -53,9 +55,10 @@ def sc_profile(args):
         client.login()
         for pid, purl, pdir in profile_urls:
             try:
-                os.makedirs(pdir)
+                os.makedirs(pdir, exist_ok=True)
                 r = save_profile(client, profile_url=purl,
-                             profile_id=pid, target_dir=pdir)
+                             profile_id=pid, target_dir=pdir,
+                             force=args.force)
                 pprint.pprint(r)
             except Exception as e:
                 logging.error(e)
@@ -172,6 +175,33 @@ def sc_inventory(args):
 
         print(f' {k} "{name}" {country} --> {len(gmap[k])} albums')
 
+
+def sc_profile(args):
+    entries = os.listdir(os.environ['MINIMIC_ARCHIVE'])
+    all_ids = [int(n.split('-')[1]) for n in entries if 'profile-' in n]
+    
+    if args.profile_id is None:
+        for pid in all_ids: print(pid)
+        return
+
+    if args.profile_id not in all_ids:
+        logging.error(f'Profile id {args.profile_id} not found')
+        sys.exit(1)
+    else:
+        info_file = os.path.join(os.environ['MINIMIC_ARCHIVE'],
+                                 f'profile-{args.profile_id}',
+                                 'info.json')
+        pdata = json.load(open(info_file))
+        if args.field:
+            r = pdata.get(args.field)
+            if type(r) == list:
+                for l in r: print(l)
+            else:
+                print(r if r is not None else '')
+        else:
+            pprint.pprint(pdata)
+
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s %(module)s.%(funcName)s() '
                                'line %(lineno)d -- %(message)s',
@@ -183,12 +213,12 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(title='Subcommands',
                                        dest='subparser_name')
     
-    sp_save_gallery = subparsers.add_parser('gallery',
+    sp_save_gallery = subparsers.add_parser('get-gallery',
         help='Download a gallery with images')
     sp_save_gallery.add_argument('gallery_url', type=str, nargs='?',
         help='Album URL or ID', default=None)
 
-    sp_save_profile = subparsers.add_parser('profile',
+    sp_save_profile = subparsers.add_parser('get-profile',
         help='Save profile information')
     sp_save_profile.add_argument('profile_url', type=str, nargs='?',
         help='Profile URL or ID', default=None)
@@ -204,10 +234,17 @@ if __name__ == '__main__':
     sp_inventory = subparsers.add_parser('inventory',
         help='Give summary of archive')
 
+    sp_profile = subparsers.add_parser('profile',
+        help='View profile info (if no arguments list all profiles)')
+    sp_profile.add_argument('profile_id', type=int, nargs='?',
+        help="ID (integer) of profile to retrieve", default=None)
+    sp_profile.add_argument('--field', type=str, 
+        help="Field to display")
+
     args = parser.parse_args()
-    if args.subparser_name == 'gallery':
+    if args.subparser_name == 'get-gallery':
         sc_gallery(args)
-    elif args.subparser_name == 'profile':
+    elif args.subparser_name == 'get-profile':
         sc_profile(args)
     elif args.subparser_name == 'index':
         sc_index(args)
@@ -215,6 +252,8 @@ if __name__ == '__main__':
         sc_status(args)
     elif args.subparser_name == 'inventory':
         sc_inventory(args)
+    elif args.subparser_name == 'profile':
+        sc_profile(args)
     else:
         raise ValueError('Invalid subcommand')
 

@@ -160,7 +160,7 @@ def save_profile(client: ClientSession, profile_url: str, profile_id: int,
             g_id = int(g.attrib['href'].split('/')[-1])
             profile_info['galleries'].append(g_id)
     except Exception as e:
-        logging.warning(f'{e}: Cannot find galleires on {profile_url}')
+        logging.warning(f'{e}: Cannot find galleries on {profile_url}')
 
     try:
         a = [l for l in profile_page.text.split('\n')
