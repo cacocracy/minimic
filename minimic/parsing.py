@@ -78,9 +78,9 @@ def fetch_album_data(client: ClientSession, album_url: str) -> Dict[str, Any]:
 
     img_links = []
     profile_name, album_name = 'unknown', 'unknown'
+    profile_id = None
     for line in album_page.text.splitlines(True):
         if '/profiles' in line and 'Private message' in line:
-            profile_id = None
             try:
                 # E.g.,  "/profiles/88468-user-name/messages/new"
                 pidstr = line.split('href="')[1].split('" class=')[0]

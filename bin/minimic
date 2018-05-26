@@ -20,7 +20,7 @@ for v in REQUIRED_VARS:
         raise ValueError(f'Missing shell vars {", ".join(missing_vars)}')
 
 
-def sc_profile(args):
+def sc_get_profile(args):
     archive_dir = os.path.expanduser(os.environ['MINIMIC_ARCHIVE'])
     if not os.path.isdir(archive_dir):
         logging.warning(f"Making archive at {archive_dir}")
@@ -245,7 +245,7 @@ if __name__ == '__main__':
     if args.subparser_name == 'get-gallery':
         sc_gallery(args)
     elif args.subparser_name == 'get-profile':
-        sc_profile(args)
+        sc_get_profile(args)
     elif args.subparser_name == 'index':
         sc_index(args)
     elif args.subparser_name == 'status':
